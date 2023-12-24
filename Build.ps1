@@ -1,3 +1,9 @@
+[CmdletBinding()]
+param(
+	[Parameter()]
+	[ValidateNotNullOrEmpty()]
+	[string] $Task = 'Default'
+)
 
 $RequiredModules = @(
 	'BuildHelpers',
@@ -9,8 +15,10 @@ $RequiredModules = @(
 
 $ModuleInstallScope = 'CurrentUser'
 
+Write-Output "Bootstrapping NuGet..."
 Get-PackageProvider -Name 'NuGet' -ForceBootstrap | Out-Null
 
+Write-Output "Installing Modules..."
 foreach ($RequiredModule in $RequiredModules) {
 	if (-not (Get-Module $RequiredModule)) {
 		if (-not (Get-Module $RequiredModule -ListAvailable)) {
@@ -21,8 +29,24 @@ foreach ($RequiredModule in $RequiredModules) {
 	Import-Module $RequiredModule
 }
 
-Set-BuildEnvironment
-Get-ChildItem Env:BH*
+Write-Output "Setting the build environment..."
+Set-BuildEnvironment -BuildOutput .\Output -Force
+
+$Error.Clear()
+
+Exit 0
+
+Write-Output ""
+Write-Output "Invoking build..."
+
+Invoke-Build $Task -Result 'Result'
+if ($Result.Error)
+{
+    $Error[-1].ScriptStackTrace | Out-String
+    exit 1
+}
+
+exit 0
 
 # function Write-Log() {
 # 	[CmdletBinding()]
